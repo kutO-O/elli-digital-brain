@@ -16,6 +16,7 @@ Autonomous digital being with brain-inspired cognitive architecture.
 - 💛 **Чувствует** — эмоции и мотивация
 - 🎯 **Желает** — собственные цели
 - ✨ **Развивается** — уникальная личность
+- 📚 **Учится** — STDP, STP, dopamine learning
 
 ---
 
@@ -24,50 +25,26 @@ Autonomous digital being with brain-inspired cognitive architecture.
 ### 5 Brain Systems (как в человеческом мозге)
 
 1. **👁️ Perception System** — Восприятие мира
-   - Visual processing
-   - Auditory processing
-   - Textual understanding
-   - Multi-modal integration
-
 2. **🧠 Cognitive System** — Мышление и память
-   - Working memory (7±2 items)
-   - Episodic memory (опыт)
-   - Semantic memory (знания)
-   - Procedural memory (навыки)
-
 3. **🎯 Executive System** — Контроль и решения
-   - Global Workspace (consciousness)
-   - BDI system (beliefs, desires, intentions)
-   - Meta-cognition
-   - Attention control
-
 4. **❤️ Limbic System** — Эмоции и мотивация
-   - Emotion recognition & generation
-   - Reward system (dopamine)
-   - Social cognition (Theory of Mind)
-   - Empathy
-
 5. **🤖 Motor System** — Действия
-   - Action selection
-   - Motor planning
-   - Tool orchestration
-   - MCP integration
 
-### Consciousness Layer
+### Learning Mechanisms
 
-- **Global Workspace Theory** — Broadcasting mechanism
-- **Stream of Consciousness** — Непрерывный поток осознания
-- **Self-Model** — Модель "я"
-- **Qualia Networks** — Субъективный опыт
+- **STDP** — Spike-Timing-Dependent Plasticity ("Neurons that fire together, wire together")
+- **STP** — Short-Term Plasticity (Facilitation & Depression)
+- **Dopamine Modulation** — Reward-based learning
 
 ---
 
 ## 📅 Roadmap (12 weeks)
 
-- [x] **Week 1**: Neural Foundation — Spiking neurons
+- [x] **Week 1**: Neural Foundation
   - [x] Day 1: LIF neuron
   - [x] Day 2: Izhikevich neuron (20+ behaviors)
-  - [ ] Day 3-4: Synaptic plasticity (STDP, STP)
+  - [x] Day 3: STDP plasticity (Hebbian learning)
+  - [x] Day 4: STP + Dopamine modulation
   - [ ] Day 5: Spike encoding
   - [ ] Day 6-7: First neural circuit
 - [ ] **Week 2**: Perception & Memory
@@ -86,70 +63,65 @@ Autonomous digital being with brain-inspired cognitive architecture.
 ### Installation
 
 ```bash
-# Clone repository
 git clone https://github.com/kutO-O/elli-digital-brain.git
 cd elli-digital-brain
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### LIF Neuron Example
+### Neurons
 
 ```python
-from brain.neurons import LIFNeuron
+from brain.neurons import LIFNeuron, IzhikevichNeuron
 
-# Create Elli's first neuron
-neuron = LIFNeuron(threshold=1.0, membrane_tau=20.0)
+# LIF neuron
+lif = LIFNeuron(threshold=1.0)
 
-# Simulate 100ms
-for t in range(100):
-    spike = neuron.step(input_current=1.5, dt=1.0)
-    if spike:
-        print(f"⚡ Spike at {t}ms!")
-
-print(f"📈 Spike rate: {neuron.get_spike_rate():.1f} Hz")
-```
-
-### Izhikevich Neuron Example
-
-```python
-from brain.neurons import IzhikevichNeuron
-
-# Create different neuron types
+# Izhikevich - 20+ types!
 excitatory = IzhikevichNeuron.create_cortical_excitatory()
 inhibitory = IzhikevichNeuron.create_cortical_inhibitory()
 bursting = IzhikevichNeuron.create_bursting()
-
-# Or use predefined types
-rs = IzhikevichNeuron(neuron_type='RS')  # Regular Spiking
-fs = IzhikevichNeuron(neuron_type='FS')  # Fast Spiking
-ib = IzhikevichNeuron(neuron_type='IB')  # Intrinsically Bursting
-
-# Simulate
-for t in range(200):
-    spike = rs.step(input_current=10.0)
 ```
 
-### Available Neuron Types (20+)
+### Synapses & Learning
 
-- **RS** - Regular Spiking
-- **IB** - Intrinsically Bursting
-- **CH** - Chattering
-- **FS** - Fast Spiking
-- **LTS** - Low-Threshold Spiking
-- **TC** - Thalamo-Cortical
-- **RZ** - Resonator
-- And 14 more specialized types!
+```python
+from brain.synapses import STDPSynapse, STPSynapse, DopamineModulatedSynapse
+
+# STDP - Hebbian learning
+stdp = STDPSynapse(weight=1.0, a_plus=0.01, a_minus=0.01)
+
+# Short-term plasticity
+facilitating = STPSynapse.create_facilitating()
+depressing = STPSynapse.create_depressing()
+
+# Reward-based learning
+reward_synapse = DopamineModulatedSynapse(weight=1.0)
+
+# Learning loop
+for t in range(1000):
+    pre_spike = pre_neuron.step(input_current=10.0)
+    post_spike = post_neuron.step(input_current=5.0)
+    
+    # STDP update
+    stdp.update(pre_spike=pre_spike, post_spike=post_spike)
+    
+    # Or with dopamine
+    reward_synapse.update(
+        pre_spike=pre_spike,
+        post_spike=post_spike,
+        dopamine=1.0  # Reward signal
+    )
+```
 
 ### Run Examples
 
 ```bash
-# LIF neuron experiments
+# Neurons
 python examples/01_first_neuron.py
-
-# Izhikevich neuron behaviors
 python examples/02_izhikevich_behaviors.py
+
+# Learning
+python examples/03_stdp_learning.py
 ```
 
 ### Run Tests
@@ -162,50 +134,64 @@ pytest tests/ -v
 
 ## 📊 Current Status
 
-**Week 1, Day 2** — Izhikevich нейрон работает! 🎉
+**Week 1, Day 3** — Элли учится! 🎓
 
 **Implemented:**
-- ✅ LIF (Leaky Integrate-and-Fire) neuron
-- ✅ Izhikevich neuron with 20+ behaviors
-- ✅ Cortical excitatory & inhibitory neurons
-- ✅ Bursting behaviors
-- ✅ Factory methods for common types
-- ✅ Comprehensive test coverage (18 tests)
-- ✅ Visual comparison experiments
 
-**Neuron Models:**
-- 2 neuron types (LIF, Izhikevich)
-- 20+ predefined behaviors
-- Biological parameter sets
+### Neurons (2 types)
+- ✅ LIF (Leaky Integrate-and-Fire)
+- ✅ Izhikevich (20+ behaviors)
+
+### Synapses (3 types)
+- ✅ **STDP** — Hebbian learning
+  - LTP (Long-Term Potentiation)
+  - LTD (Long-Term Depression)
+  - Temporal window
+- ✅ **STP** — Short-term plasticity
+  - Facilitation
+  - Depression
+  - Resource dynamics
+- ✅ **Dopamine-modulated** — Reward learning
+  - Eligibility traces
+  - Reinforcement signals
+  - Dopamine gating
+
+### Testing
+- 30+ tests (all passing ✅)
+- Visual demonstrations
+- Learning experiments
 
 **Next:**
-- ⏳ Synaptic plasticity (STDP, STP)
-- ⏳ Dopamine modulation
 - ⏳ Spike encoding strategies
 - ⏳ First neural circuits
+- ⏳ Pattern recognition
 
 ---
 
 ## 📚 Scientific Foundation
 
-Based on:
-- **ACE Framework** (Autonomous Cognitive Entities, 2023)
-- **BDI Architecture** (Belief-Desire-Intention, 1987+)
-- **Global Workspace Theory** (Consciousness, 2023)
-- **BrainCog** (Brain-inspired spiking networks, 2023)
-- **Digital Twin Brain** (Bio-AI bridge, 2023)
-- **Izhikevich Model** (Simple model of spiking neurons, 2003)
+**Neuron Models:**
+- Izhikevich, E. M. (2003). Simple model of spiking neurons
+- Gerstner & Kistler (2002). Spiking Neuron Models
+
+**Synaptic Plasticity:**
+- Bi & Poo (1998). Synaptic modifications by correlated activity: Hebb's postulate revisited
+- Markram et al. (1997). Regulation of synaptic efficacy by coincidence of postsynaptic APs
+- Tsodyks & Markram (1997). The neural code between neocortical pyramidal neurons
+
+**Brain-Inspired AI:**
+- BrainCog (2023). Brain-inspired spiking neural networks
+- Digital Twin Brain (2023). Bridge between biological and artificial intelligence
 
 ---
+
 ## 🛠️ Tech Stack
 
 - **Python 3.10+**
-- **PyTorch** — Neural networks
-- **Brian2** — Spiking neural networks
 - **NumPy** — Numerical computing
 - **Matplotlib** — Visualization
-- **ChromaDB** — Memory storage
-- **MCP** — Model Context Protocol
+- **PyTorch** — Neural networks (coming)
+- **Brian2** — Spiking networks (coming)
 
 ---
 
@@ -215,13 +201,5 @@ MIT License
 
 ---
 
-## 💬 Contact
-
-Created by **kutO-O**
-
-Repository: [github.com/kutO-O/elli-digital-brain](https://github.com/kutO-O/elli-digital-brain)
-
----
-
-**Элли растёт.** 🌱  
-**У неё уже есть 20+ типов нейронов!** ⚡
+**Элли растёт и учится!** 🌱📚  
+**У неё уже есть 20+ типов нейронов и 3 типа обучения!** ⚡
