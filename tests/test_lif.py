@@ -51,10 +51,21 @@ def test_lif_refractory_period():
         spike = neuron.step(input_current=10.0, dt=1.0)
         assert spike == 0.0  # Не должен спайкать
     
-    # После рефрактерного периода
+    # Ждем окончания рефрактерного периода (5ms total)
+    # Уже прошло: 1 (первый спайк) + 4 = 5ms
+    # Один шаг чтобы выйти из рефрактерного периода
     neuron.step(input_current=10.0, dt=1.0)
-    spike = neuron.step(input_current=10.0, dt=1.0)
-    assert spike == 1.0  # Теперь может
+    
+    # Теперь накопить потенциал и спайкнуть
+    # Нужно несколько шагов, т.к. потенциал был сброшен
+    spike = 0.0
+    for _ in range(10):  # Даём время накопить потенциал
+        spike = neuron.step(input_current=2.0, dt=1.0)
+        if spike == 1.0:
+            break
+    
+    assert spike == 1.0  # Должен спайкнуть после рефрактерного периода
+    assert len(neuron.spike_history) == 2  # Два спайка всего
 
 
 def test_lif_membrane_decay():
