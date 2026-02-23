@@ -7,7 +7,7 @@ from .synapses import (
     SynapseBase,
     STDPSynapse,
     STPSynapse,
-    DopamineSTDPSynapse,
+    DopamineModulatedSynapse,
 )
 
 __all__ = [
@@ -15,9 +15,10 @@ __all__ = [
     'NeuronBase',
     'LIFNeuron',
     'IzhikevichNeuron',
+    
     # Synapses
     'SynapseBase',
     'STDPSynapse',
     'STPSynapse',
-    'DopamineSTDPSynapse',
+    'DopamineModulatedSynapse',
 ]
