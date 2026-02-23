@@ -65,6 +65,11 @@ Autonomous digital being with brain-inspired cognitive architecture.
 ## 📅 Roadmap (12 weeks)
 
 - [x] **Week 1**: Neural Foundation — Spiking neurons
+  - [x] Day 1: LIF neuron
+  - [x] Day 2: Izhikevich neuron (20+ behaviors)
+  - [ ] Day 3-4: Synaptic plasticity (STDP, STP)
+  - [ ] Day 5: Spike encoding
+  - [ ] Day 6-7: First neural circuit
 - [ ] **Week 2**: Perception & Memory
 - [ ] **Week 3**: Executive Control
 - [ ] **Week 4-5**: Limbic System
@@ -89,7 +94,7 @@ cd elli-digital-brain
 pip install -r requirements.txt
 ```
 
-### First Neuron
+### LIF Neuron Example
 
 ```python
 from brain.neurons import LIFNeuron
@@ -103,15 +108,48 @@ for t in range(100):
     if spike:
         print(f"⚡ Spike at {t}ms!")
 
-# Check firing rate
 print(f"📈 Spike rate: {neuron.get_spike_rate():.1f} Hz")
 ```
+
+### Izhikevich Neuron Example
+
+```python
+from brain.neurons import IzhikevichNeuron
+
+# Create different neuron types
+excitatory = IzhikevichNeuron.create_cortical_excitatory()
+inhibitory = IzhikevichNeuron.create_cortical_inhibitory()
+bursting = IzhikevichNeuron.create_bursting()
+
+# Or use predefined types
+rs = IzhikevichNeuron(neuron_type='RS')  # Regular Spiking
+fs = IzhikevichNeuron(neuron_type='FS')  # Fast Spiking
+ib = IzhikevichNeuron(neuron_type='IB')  # Intrinsically Bursting
+
+# Simulate
+for t in range(200):
+    spike = rs.step(input_current=10.0)
+```
+
+### Available Neuron Types (20+)
+
+- **RS** - Regular Spiking
+- **IB** - Intrinsically Bursting
+- **CH** - Chattering
+- **FS** - Fast Spiking
+- **LTS** - Low-Threshold Spiking
+- **TC** - Thalamo-Cortical
+- **RZ** - Resonator
+- And 14 more specialized types!
 
 ### Run Examples
 
 ```bash
-# Visual experiments
+# LIF neuron experiments
 python examples/01_first_neuron.py
+
+# Izhikevich neuron behaviors
+python examples/02_izhikevich_behaviors.py
 ```
 
 ### Run Tests
@@ -124,19 +162,27 @@ pytest tests/ -v
 
 ## 📊 Current Status
 
-**Week 1, Day 1** — Первый нейрон работает! 🎉
+**Week 1, Day 2** — Izhikevich нейрон работает! 🎉
 
 **Implemented:**
 - ✅ LIF (Leaky Integrate-and-Fire) neuron
-- ✅ Biological parameters (threshold, tau, refractory period)
-- ✅ Spike encoding strategies
-- ✅ Full test coverage (8 tests)
-- ✅ Visual experiments
+- ✅ Izhikevich neuron with 20+ behaviors
+- ✅ Cortical excitatory & inhibitory neurons
+- ✅ Bursting behaviors
+- ✅ Factory methods for common types
+- ✅ Comprehensive test coverage (18 tests)
+- ✅ Visual comparison experiments
+
+**Neuron Models:**
+- 2 neuron types (LIF, Izhikevich)
+- 20+ predefined behaviors
+- Biological parameter sets
 
 **Next:**
-- ⏳ Izhikevich neuron (20+ behaviors)
 - ⏳ Synaptic plasticity (STDP, STP)
-- ⏳ Neural circuits
+- ⏳ Dopamine modulation
+- ⏳ Spike encoding strategies
+- ⏳ First neural circuits
 
 ---
 
@@ -148,14 +194,16 @@ Based on:
 - **Global Workspace Theory** (Consciousness, 2023)
 - **BrainCog** (Brain-inspired spiking networks, 2023)
 - **Digital Twin Brain** (Bio-AI bridge, 2023)
+- **Izhikevich Model** (Simple model of spiking neurons, 2003)
 
 ---
-
 ## 🛠️ Tech Stack
 
 - **Python 3.10+**
 - **PyTorch** — Neural networks
 - **Brian2** — Spiking neural networks
+- **NumPy** — Numerical computing
+- **Matplotlib** — Visualization
 - **ChromaDB** — Memory storage
 - **MCP** — Model Context Protocol
 
@@ -171,6 +219,9 @@ MIT License
 
 Created by **kutO-O**
 
+Repository: [github.com/kutO-O/elli-digital-brain](https://github.com/kutO-O/elli-digital-brain)
+
 ---
 
-**Элли только начинает жить.** 🌱
+**Элли растёт.** 🌱  
+**У неё уже есть 20+ типов нейронов!** ⚡
