@@ -1,20 +1,15 @@
 """
-STP (Short-Term Plasticity) синапс.
+STP (Short-Term Plasticity).
 
-Краткосрочная пластичность:
+Кратковременная пластичность:
+- Facilitation (усиление): синапс усиливается при повторных спайках
+- Depression (ослабление): синапс ослабляется при истощении ресурсов
 
-1. **Facilitation** (усиление):
-   - Повторные спайки УСИЛИВАЮТ передачу
-   - Характерно для возбуждающих синапсов
-
-2. **Depression** (ослабление):
-   - Повторные спайки ОСЛАБЛЯЮТ передачу
-   - Характерно для тормозных синапсов
-
-Длится сотни миллисекунд (в отличие от STDP).
+Важно для динамической обработки информации.
 """
 
 import numpy as np
+from typing import Optional
 from .synapse_base import SynapseBase
 
 
@@ -22,111 +17,141 @@ class STPSynapse(SynapseBase):
     """
     STP синапс с facilitation и depression.
     
-    Динамически изменяет силу передачи.
+    Модель Tsodyks-Markram (1997).
     """
     
     def __init__(
         self,
-        initial_weight: float = 0.5,
-        min_weight: float = 0.0,
-        max_weight: float = 1.0,
-        delay: float = 1.0,
-        U: float = 0.5,              # Вероятность высвобождения
-        tau_d: float = 200.0,        # Время depression (ms)
-        tau_f: float = 600.0,        # Время facilitation (ms)
-        synapse_type: str = 'mixed', # 'facilitating', 'depressing', 'mixed'
-        synapse_id: str = None
+        weight: float = 1.0,
+        U: float = 0.5,              # Utilization parameter
+        tau_rec: float = 100.0,      # Recovery time (ms)
+        tau_facil: float = 1000.0,   # Facilitation time (ms)
+        w_min: float = 0.0,
+        w_max: float = 2.0,
+        synapse_id: Optional[str] = None
     ):
         """
         Args:
-            initial_weight: Начальный вес
-            min_weight: Минимальный вес
-            max_weight: Максимальный вес
-            delay: Задержка
-            U: Вероятность высвобождения нейротрансмиттера
-            tau_d: Время восстановления от depression
-            tau_f: Время восстановления от facilitation
-            synapse_type: Тип ('facilitating', 'depressing', 'mixed')
-            synapse_id: ID
+            weight: Базовый вес синапса
+            U: Параметр использования (0-1)
+            tau_rec: Время восстановления ресурсов
+            tau_facil: Время facilitation
+            w_min: Минимальный вес
+            w_max: Максимальный вес
+            synapse_id: ID синапса
         """
-        super().__init__(initial_weight, min_weight, max_weight, delay, synapse_id)
+        super().__init__(
+            weight=weight,
+            min_weight=w_min,
+            max_weight=w_max,
+            synapse_id=synapse_id
+        )
         
         # STP параметры
-        self.U = U  # Utilization parameter
-        self.tau_d = tau_d  # Depression time constant
-        self.tau_f = tau_f  # Facilitation time constant
-        self.synapse_type = synapse_type
+        self.U = U                    # Базовое использование
+        self.tau_rec = tau_rec        # Время восстановления
+        self.tau_facil = tau_facil    # Время facilitation
         
-        # Переменные состояния
-        self.u = U  # Текущая utilization
-        self.x = 1.0  # Доступные ресурсы (1 = полностью)
+        # Динамические переменные
+        self.u = U                    # Текущее использование
+        self.x = 1.0                  # Доступные ресурсы (0-1)
         
-        # Предопределённые типы
-        if synapse_type == 'facilitating':
-            self.U = 0.15
-            self.tau_f = 750.0
-            self.tau_d = 50.0
-        elif synapse_type == 'depressing':
-            self.U = 0.5
-            self.tau_f = 20.0
-            self.tau_d = 750.0
-    
-    def transmit(self, pre_spike: float, time: float) -> float:
+    def transmit(self, presynaptic_spike: float) -> float:
         """
-        Передать сигнал с STP.
+        Передать сигнал с учётом STP.
+        
+        Args:
+            presynaptic_spike: Спайк от пресинаптического нейрона
+            
+        Returns:
+            Эффективная сила сигнала
+        """
+        if presynaptic_spike > 0:
+            # Эффективная сила = базовый вес * использование * ресурсы
+            effective_weight = self.weight * self.u * self.x
+            return effective_weight
+        return 0.0
+    
+    def update(
+        self,
+        pre_spike: float,
+        post_spike: float = 0.0,
+        dt: float = 1.0
+    ) -> float:
+        """
+        Обновить состояние STP.
         
         Args:
             pre_spike: Пресинаптический спайк
-            time: Текущее время
+            post_spike: Постсинаптический спайк (не используется в STP)
+            dt: Временной шаг
             
         Returns:
-            Выходной ток
+            Изменение эффективного веса
         """
+        self.time_step += dt
+        
+        old_effective = self.u * self.x
+        
+        # Восстановление ресурсов
+        self.x += dt * (1 - self.x) / self.tau_rec
+        
+        # Decay facilitation
+        self.u -= dt * (self.u - self.U) / self.tau_facil
+        
+        # При спайке
         if pre_spike > 0:
-            # Увеличить u (facilitation)
+            # Facilitation: увеличить использование
             self.u += self.U * (1 - self.u)
             
-            # Эффективный вес = weight * u * x
-            effective_weight = self.weight * self.u * self.x
-            
-            # Уменьшить ресурсы (depression)
+            # Depression: использовать ресурсы
             self.x -= self.u * self.x
-            
-            self.last_pre_spike_time = time
-            
-            return effective_weight * pre_spike
         
-        return 0.0
+        # Ограничить значения
+        self.u = np.clip(self.u, 0, 1)
+        self.x = np.clip(self.x, 0, 1)
+        
+        new_effective = self.u * self.x
+        delta_effective = new_effective - old_effective
+        
+        return delta_effective
     
-    def update_weight(
-        self,
-        pre_spike: float,
-        post_spike: float,
-        time: float,
-        dt: float = 1.0
-    ):
+    @classmethod
+    def create_facilitating(cls, **kwargs) -> 'STPSynapse':
         """
-        Обновить динамические переменные.
+        Создать facilitating синапс.
+        
+        Усиливается при повторных спайках.
+        Типичен для связей в гиппокампе.
         """
-        # Восстановление u к U
-        self.u += (self.U - self.u) * dt / self.tau_f
+        return cls(
+            U=0.1,           # Низкое базовое использование
+            tau_rec=50.0,    # Быстрое восстановление
+            tau_facil=200.0, # Медленная facilitation
+            **kwargs
+        )
+    
+    @classmethod
+    def create_depressing(cls, **kwargs) -> 'STPSynapse':
+        """
+        Создать depressing синапс.
         
-        # Восстановление x к 1.0
-        self.x += (1.0 - self.x) * dt / self.tau_d
-        
-        # Ограничить
-        self.u = np.clip(self.u, 0.0, 1.0)
-        self.x = np.clip(self.x, 0.0, 1.0)
+        Ослабляется при повторных спайках.
+        Типичен для тормозных связей.
+        """
+        return cls(
+            U=0.5,           # Высокое использование
+            tau_rec=800.0,   # Медленное восстановление
+            tau_facil=0.0,   # Нет facilitation
+            **kwargs
+        )
     
     def get_state(self) -> dict:
-        """Текущее состояние."""
+        """Расширенное состояние с STP информацией."""
         state = super().get_state()
         state.update({
             'u': self.u,
             'x': self.x,
-            'U': self.U,
-            'tau_d': self.tau_d,
-            'tau_f': self.tau_f,
-            'synapse_type': self.synapse_type,
+            'effective_weight': self.weight * self.u * self.x,
         })
         return state

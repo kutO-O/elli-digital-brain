@@ -1,5 +1,5 @@
 """
-Базовый класс для всех синапсов.
+Базовый класс для всех синапсов Элли.
 """
 
 from abc import ABC, abstractmethod
@@ -11,63 +11,62 @@ class SynapseBase(ABC):
     """
     Абстрактный базовый класс синапса.
     
-    Синапс соединяет два нейрона и может:
-    - Усиливаться/ослабляться (пластичность)
-    - Передавать сигнал с задержкой
-    - Изменять свою силу в зависимости от активности
+    Синапс = связь между двумя нейронами.
+    Вес синапса определяет силу связи.
     """
     
     def __init__(
         self,
-        initial_weight: float = 0.5,
+        weight: float = 1.0,
         min_weight: float = 0.0,
-        max_weight: float = 1.0,
-        delay: float = 1.0,
+        max_weight: float = 10.0,
         synapse_id: Optional[str] = None
     ):
         """
         Args:
-            initial_weight: Начальный вес синапса
+            weight: Начальный вес синапса
             min_weight: Минимальный вес
             max_weight: Максимальный вес
-            delay: Задержка передачи (ms)
-            synapse_id: Уникальный идентификатор
+            synapse_id: ID синапса
         """
         self.synapse_id = synapse_id or f"synapse_{id(self)}"
-        self.weight = initial_weight
+        self.weight = weight
         self.min_weight = min_weight
         self.max_weight = max_weight
-        self.delay = delay
         
         # История
-        self.weight_history = [initial_weight]
-        self.last_pre_spike_time = -np.inf
-        self.last_post_spike_time = -np.inf
+        self.weight_history = [weight]
+        self.time_step = 0
         
-    @abstractmethod
-    def transmit(self, pre_spike: float, time: float) -> float:
+    def transmit(self, presynaptic_spike: float) -> float:
         """
         Передать сигнал через синапс.
         
         Args:
-            pre_spike: Спайк пресинаптического нейрона (0 или 1)
-            time: Текущее время (ms)
+            presynaptic_spike: Спайк от пресинаптического нейрона (0 или 1)
             
         Returns:
-            Выходной сигнал (ток)
+            Сила сигнала = weight * spike
         """
-        pass
+        return self.weight * presynaptic_spike
     
-    def update_weight(
+    @abstractmethod
+    def update(
         self,
         pre_spike: float,
         post_spike: float,
-        time: float
-    ):
+        dt: float = 1.0
+    ) -> float:
         """
-        Обновить вес синапса (пластичность).
+        Обновить вес синапса на основе активности нейронов.
         
-        Переопределяется в подклассах (STDP, STP, и т.д.).
+        Args:
+            pre_spike: Спайк пресинаптического нейрона
+            post_spike: Спайк постсинаптического нейрона
+            dt: Временной шаг
+            
+        Returns:
+            Изменение веса
         """
         pass
     
@@ -82,12 +81,8 @@ class SynapseBase(ABC):
             'weight': self.weight,
             'min_weight': self.min_weight,
             'max_weight': self.max_weight,
-            'delay': self.delay,
+            'age': self.time_step,
         }
     
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"weight={self.weight:.3f}, "
-            f"delay={self.delay:.1f}ms)"
-        )
+        return f"{self.__class__.__name__}(id={self.synapse_id}, w={self.weight:.3f})"
