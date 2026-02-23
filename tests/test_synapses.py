@@ -4,227 +4,214 @@
 
 import pytest
 import numpy as np
-from brain.synapses import STDPSynapse, STPSynapse, DopamineSTDPSynapse
+from brain.synapses import STDPSynapse, STPSynapse, DopamineModulatedSynapse
 
 
 class TestSTDPSynapse:
-    """STDP synapse tests."""
+    """Tests for STDP synapse."""
     
     def test_initialization(self):
-        """Синапс инициализируется."""
-        synapse = STDPSynapse()
+        """Синапс инициализируется правильно."""
+        synapse = STDPSynapse(weight=1.0)
         
-        assert synapse.weight == 0.5
+        assert synapse.weight == 1.0
         assert synapse.pre_trace == 0.0
         assert synapse.post_trace == 0.0
     
-    def test_transmit(self):
-        """Передача сигнала."""
-        synapse = STDPSynapse(initial_weight=0.5)
-        
-        output = synapse.transmit(pre_spike=1.0, time=10.0)
-        
-        assert output == 0.5  # weight * spike
-        assert synapse.pre_trace == 1.0
-    
-    def test_ltp_potentiation(self):
-        """LTP: пре спайкает ПЕРЕД post → усиление."""
-        synapse = STDPSynapse(initial_weight=0.5, a_plus=0.1, a_minus=0.1)
+    def test_ltp_causality(self):
+        """
+LTP: pre перед post -> усиление."""
+        synapse = STDPSynapse(weight=1.0, a_plus=0.1, a_minus=0.1)
         
         initial_weight = synapse.weight
         
-        # Pre spike first
-        synapse.update_weight(pre_spike=1.0, post_spike=0.0, time=0.0)
+        # Pre спайк
+        synapse.update(pre_spike=1.0, post_spike=0.0, dt=1.0)
         
-        # Post spike after (10ms later)
-        for _ in range(10):
-            synapse.update_weight(pre_spike=0.0, post_spike=0.0, time=1.0)
-        synapse.update_weight(pre_spike=0.0, post_spike=1.0, time=10.0)
+        # 5ms задержка
+        for _ in range(5):
+            synapse.update(pre_spike=0.0, post_spike=0.0, dt=1.0)
+        
+        # Post спайк
+        synapse.update(pre_spike=0.0, post_spike=1.0, dt=1.0)
         
         # Вес должен увеличиться
         assert synapse.weight > initial_weight
     
-    def test_ltd_depression(self):
-        """LTD: post спайкает ПЕРЕД pre → ослабление."""
-        synapse = STDPSynapse(initial_weight=0.5, a_plus=0.1, a_minus=0.1)
+    def test_ltd_anti_causality(self):
+        """
+LTD: post перед pre -> ослабление."""
+        synapse = STDPSynapse(weight=1.0, a_plus=0.1, a_minus=0.1)
         
         initial_weight = synapse.weight
         
-        # Post spike first
-        synapse.update_weight(pre_spike=0.0, post_spike=1.0, time=0.0)
+        # Post спайк
+        synapse.update(pre_spike=0.0, post_spike=1.0, dt=1.0)
         
-        # Pre spike after (10ms later)
-        for _ in range(10):
-            synapse.update_weight(pre_spike=0.0, post_spike=0.0, time=1.0)
-        synapse.update_weight(pre_spike=1.0, post_spike=0.0, time=10.0)
+        # 5ms задержка
+        for _ in range(5):
+            synapse.update(pre_spike=0.0, post_spike=0.0, dt=1.0)
+        
+        # Pre спайк
+        synapse.update(pre_spike=1.0, post_spike=0.0, dt=1.0)
         
         # Вес должен уменьшиться
         assert synapse.weight < initial_weight
     
-    def test_weight_bounds(self):
-        """Вес остаётся в границах."""
-        synapse = STDPSynapse(
-            initial_weight=0.9,
-            min_weight=0.0,
-            max_weight=1.0,
-            a_plus=0.5
-        )
+    def test_weight_clipping(self):
+        """Вес ограничен пределами."""
+        synapse = STDPSynapse(weight=1.0, w_min=0.0, w_max=2.0, a_plus=1.0)
         
         # Много LTP
-        for _ in range(10):
-            synapse.update_weight(pre_spike=1.0, post_spike=0.0, time=0.0)
-            synapse.update_weight(pre_spike=0.0, post_spike=1.0, time=5.0)
+        for _ in range(100):
+            synapse.update(pre_spike=1.0, post_spike=0.0, dt=1.0)
+            for _ in range(5):
+                synapse.update(pre_spike=0.0, post_spike=0.0, dt=1.0)
+            synapse.update(pre_spike=0.0, post_spike=1.0, dt=1.0)
         
-        # Не должен превысить max
-        assert synapse.weight <= 1.0
+        # Не должен превышать max
+        assert synapse.weight <= 2.0
         assert synapse.weight >= 0.0
+    
+    def test_stdp_window(self):
+        """STDP окно имеет правильную форму."""
+        synapse = STDPSynapse()
+        
+        window = synapse.get_stdp_window(delta_t_range=(-50, 50))
+        
+        assert 'delta_t' in window
+        assert 'delta_w' in window
+        assert len(window['delta_t']) == 200
+        
+        # Положительная часть (LTP)
+        positive_idx = window['delta_t'] > 0
+        assert np.all(window['delta_w'][positive_idx] > 0)
+        
+        # Отрицательная часть (LTD)
+        negative_idx = window['delta_t'] < 0
+        assert np.all(window['delta_w'][negative_idx] < 0)
 
 
 class TestSTPSynapse:
-    """STP synapse tests."""
+    """Tests for STP synapse."""
     
     def test_initialization(self):
-        """Синапс инициализируется."""
-        synapse = STPSynapse()
+        """Синапс инициализируется правильно."""
+        synapse = STPSynapse(weight=1.0, U=0.5)
         
-        assert synapse.weight == 0.5
-        assert synapse.u == synapse.U
+        assert synapse.weight == 1.0
+        assert synapse.U == 0.5
         assert synapse.x == 1.0
+        assert synapse.u == 0.5
     
-    def test_facilitating_type(self):
-        """
-Facilitating синапс усиливается."""
-        synapse = STPSynapse(synapse_type='facilitating')
+    def test_depression(self):
+        """Depression: эффективный вес уменьшается."""
+        synapse = STPSynapse.create_depressing()
         
-        outputs = []
+        initial_effective = synapse.u * synapse.x
+        
+        # Несколько спайков подряд
         for _ in range(5):
-            output = synapse.transmit(pre_spike=1.0, time=0.0)
-            outputs.append(output)
-            synapse.update_weight(pre_spike=1.0, post_spike=0.0, time=0.0, dt=10.0)
+            synapse.update(pre_spike=1.0, dt=10.0)
         
-        # Выход должен увеличиваться
-        assert outputs[-1] > outputs[0]
+        final_effective = synapse.u * synapse.x
+        
+        # Эффективный вес должен уменьшиться
+        assert final_effective < initial_effective
     
-    def test_depressing_type(self):
-        """
-Depressing синапс ослабляется."""
-        synapse = STPSynapse(synapse_type='depressing')
+    def test_facilitation(self):
+        """Facilitation: u увеличивается."""
+        synapse = STPSynapse.create_facilitating()
         
-        outputs = []
-        for _ in range(5):
-            output = synapse.transmit(pre_spike=1.0, time=0.0)
-            outputs.append(output)
-            synapse.update_weight(pre_spike=1.0, post_spike=0.0, time=0.0, dt=1.0)
+        initial_u = synapse.u
         
-        # Выход должен уменьшаться
-        assert outputs[-1] < outputs[0]
+        # Несколько спайков
+        for _ in range(3):
+            synapse.update(pre_spike=1.0, dt=10.0)
+        
+        # u должно увеличиться
+        assert synapse.u > initial_u
     
     def test_recovery(self):
-        """Синапс восстанавливается."""
-        synapse = STPSynapse(synapse_type='depressing')
+        """Ресурсы восстанавливаются."""
+        synapse = STPSynapse(U=0.5, tau_rec=50.0)
         
-        # Depression
-        for _ in range(5):
-            synapse.transmit(pre_spike=1.0, time=0.0)
+        # Истощить ресурсы
+        synapse.update(pre_spike=1.0)
+        depleted_x = synapse.x
         
-        x_depressed = synapse.x
+        # Подождать
+        for _ in range(200):
+            synapse.update(pre_spike=0.0, dt=1.0)
         
-        # Recovery (no spikes)
-        for _ in range(100):
-            synapse.update_weight(pre_spike=0.0, post_spike=0.0, time=0.0, dt=10.0)
-        
-        # x должен восстановиться
-        assert synapse.x > x_depressed
+        # Ресурсы должны восстановиться
+        assert synapse.x > depleted_x
+        assert synapse.x > 0.9  # Почти полное восстановление
 
 
-class TestDopamineSTDPSynapse:
-    """Dopamine-modulated STDP tests."""
+class TestDopamineModulatedSynapse:
+    """Tests for dopamine-modulated synapse."""
     
     def test_initialization(self):
         """Синапс инициализируется."""
-        synapse = DopamineSTDPSynapse()
+        synapse = DopamineModulatedSynapse(weight=1.0)
         
-        assert synapse.weight == 0.5
-        assert synapse.dopamine_level == synapse.baseline_dopamine
+        assert synapse.weight == 1.0
         assert synapse.eligibility == 0.0
     
-    def test_set_dopamine(self):
-        """Установка дофамина."""
-        synapse = DopamineSTDPSynapse(baseline_dopamine=0.5)
-        
-        synapse.set_dopamine(0.8)
-        assert synapse.dopamine_level == 0.8
-        
-        synapse.set_dopamine(1.5)  # Выше максимума
-        assert synapse.dopamine_level == 1.0  # Clipped
-    
-    def test_reward_strengthens(self):
-        """
-Reward (высокий dopamine) усиливает синапс."""
-        synapse = DopamineSTDPSynapse(
-            initial_weight=0.5,
-            baseline_dopamine=0.5,
-            a_plus=0.1
-        )
+    def test_reward_learning(self):
+        """Положительная награда усиливает синапс."""
+        synapse = DopamineModulatedSynapse(weight=1.0, a_plus=0.1)
         
         initial_weight = synapse.weight
         
-        # Создать eligibility trace (pre раньше post)
-        synapse.update_weight(pre_spike=1.0, post_spike=0.0, time=0.0)
+        # Causal спайки (создаёт eligibility)
+        synapse.update(pre_spike=1.0, post_spike=0.0, dopamine=0.0, dt=1.0)
         for _ in range(5):
-            synapse.update_weight(pre_spike=0.0, post_spike=0.0, time=0.0, dt=1.0)
-        synapse.update_weight(pre_spike=0.0, post_spike=1.0, time=5.0)
+            synapse.update(pre_spike=0.0, post_spike=0.0, dopamine=0.0, dt=1.0)
+        synapse.update(pre_spike=0.0, post_spike=1.0, dopamine=0.0, dt=1.0)
         
-        # Дать reward
-        synapse.set_dopamine(0.9)
-        
-        # Обновить
-        for _ in range(10):
-            synapse.update_weight(pre_spike=0.0, post_spike=0.0, time=0.0, dt=1.0)
+        # Награда!
+        for _ in range(50):
+            synapse.update(pre_spike=0.0, post_spike=0.0, dopamine=1.0, dt=1.0)
         
         # Вес должен увеличиться
         assert synapse.weight > initial_weight
     
-    def test_punishment_weakens(self):
-        """
-Punishment (низкий dopamine) ослабляет синапс."""
-        synapse = DopamineSTDPSynapse(
-            initial_weight=0.5,
-            baseline_dopamine=0.5,
-            a_plus=0.1
-        )
+    def test_punishment_learning(self):
+        """Отрицательная награда ослабляет синапс."""
+        synapse = DopamineModulatedSynapse(weight=1.0, a_plus=0.1)
         
         initial_weight = synapse.weight
         
-        # Создать eligibility trace
-        synapse.update_weight(pre_spike=1.0, post_spike=0.0, time=0.0)
+        # Causal спайки
+        synapse.update(pre_spike=1.0, post_spike=0.0, dopamine=0.0, dt=1.0)
         for _ in range(5):
-            synapse.update_weight(pre_spike=0.0, post_spike=0.0, time=0.0, dt=1.0)
-        synapse.update_weight(pre_spike=0.0, post_spike=1.0, time=5.0)
+            synapse.update(pre_spike=0.0, post_spike=0.0, dopamine=0.0, dt=1.0)
+        synapse.update(pre_spike=0.0, post_spike=1.0, dopamine=0.0, dt=1.0)
         
-        # Дать punishment
-        synapse.set_dopamine(0.1)
-        
-        # Обновить
-        for _ in range(10):
-            synapse.update_weight(pre_spike=0.0, post_spike=0.0, time=0.0, dt=1.0)
+        # Наказание!
+        for _ in range(50):
+            synapse.update(pre_spike=0.0, post_spike=0.0, dopamine=-1.0, dt=1.0)
         
         # Вес должен уменьшиться
         assert synapse.weight < initial_weight
     
-    def test_dopamine_decay(self):
-        """
-Dopamine decay к baseline."""
-        synapse = DopamineSTDPSynapse(baseline_dopamine=0.5)
+    def test_no_reward_no_change(self):
+        """Без дофамина изменения минимальны."""
+        synapse = DopamineModulatedSynapse(weight=1.0, a_plus=0.1)
         
-        synapse.set_dopamine(0.9)
+        initial_weight = synapse.weight
         
-        # Decay
-        for _ in range(100):
-            synapse.update_weight(pre_spike=0.0, post_spike=0.0, time=0.0, dt=10.0)
+        # Causal спайки без дофамина
+        for _ in range(10):
+            synapse.update(pre_spike=1.0, post_spike=0.0, dopamine=0.0, dt=1.0)
+            for _ in range(5):
+                synapse.update(pre_spike=0.0, post_spike=0.0, dopamine=0.0, dt=1.0)
+            synapse.update(pre_spike=0.0, post_spike=1.0, dopamine=0.0, dt=1.0)
         
-        # Должен быть близок к baseline
-        assert abs(synapse.dopamine_level - 0.5) < 0.1
+        # Изменение должно быть минимальным
+        assert abs(synapse.weight - initial_weight) < 0.1
 
 
 if __name__ == "__main__":
