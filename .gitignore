@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Data
+data/
+memories/
+logs/
+*.db
+*.sqlite
+
+# Secrets
+.env
+secrets/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Plots
+*.png
+*.jpg
+*.jpeg
